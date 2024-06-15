@@ -47,7 +47,19 @@ def get_backup_data(df):
     print(f"Parsed compled / incomplete datasets | Completed: {len(completed)} | Incomplete: {len(incomplete)}")
     return completed[[col for col in completed.columns if "Unnamed" not in col]], incomplete
 
-def locate_country(incomplete):
+def locate(latitude, longitude):
+
+    request = requests.get(f"https://geocode.maps.co/reverse?lat={latitude}&lon={longitude}")
+
+    if request.status_code not in [401, 429, 503, 403]:
+        return request.json()
+
+    else:
+        print(f"Received status Code: {request.status_code}")
+        return False
+
+
+def locate_loop(coords_list):
     '''
     Takes the incomplete dataframe, extracts the index and coordinates from each row into a list of tuples
     Loops through the list and calls the geocode.maps api with the latitude and longitude to identify the
@@ -60,38 +72,36 @@ def locate_country(incomplete):
     '''
     
     usage = 1
-    df_coords = list(zip(incomplete.index, incomplete['latitude'], incomplete['longitude']))
     country_list = []
     json_data = get_json()
 
     print("\n", "*" * spacer_size)
     print("\nBeginning to locate countries")
 
-    for coord in df_coords:
+    for coord in coords_list:
         if usage <= rate_limit:
             lat = coord[1]
             lon = coord[2]
-        
-            request = requests.get(f"https://geocode.maps.co/reverse?lat={lat}&lon={lon}")
+            print(lat, lon)
 
-            if request.status_code not in [429, 503, 403]:
+            location = locate(lat, lon)
 
-                location = request.json()
+            if not location:
+                break
+            else:
 
                 json_data.append({"index": coord[0], "request": location})
         
                 if 'error' not in location:
                     address = location['address']['country']
                     country_list.append(address)
-                    print(f"Usage: {usage}/{rate_limit} | Index: [{coord[0]}/{len(df_coords)-1} | Coords: {coord[1:]} | Address: {address}")
+                    print(f"Usage: {usage}/{rate_limit} | Index: [{coord[0]}/{len(coords_list)-1}] | Coords: {coord[1:]} | Address: {address}")
                 else:
                     country_list.append('not_found')
-                    print(f"Usage: {usage}/{rate_limit} | Index: [{coord[0]}/{len(df_coords)-1}] | Coords: {coord[1:]} | Address: None Found")
+                    print(f"Usage: {usage}/{rate_limit} | Index: [{coord[0]}/{len(coords_list)-1}] | Coords: {coord[1:]} | Address: None Found")
 
                 sleep(0.5)
-            else:
-                print(f"Received status Code: {request.status_code}")
-                break
+
 
         else:
             print(f"Usage Limit Hit: {usage-1}/{rate_limit}")
@@ -199,7 +209,8 @@ def main():
     
     df = get_original_data(URL)
     completed, incomplete = get_backup_data(df)
-    country_list, json_data = locate_country(incomplete)
+    coords_list = list(zip(incomplete.index, incomplete['latitude'], incomplete['longitude']))
+    country_list, json_data = locate_loop(coords_list)
     completed, incomplete, country_list = add_countries(completed, incomplete, country_list)
     export_data(completed, json_data)
 
