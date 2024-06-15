@@ -1,4 +1,9 @@
-# geo-locate
-Locate addresses with a set of provided latitude and longitude coordinates
+# Geo Locate
 
-Geo_Locate class should be initialised with 2 equal sized lists of latitude and longitude coordinates. Script output is a JSON list containing dictionaries for each location.
+Script using the [Geocode API](https://geocode.maps.co/) to retrieve address data with a provided table of latitude and longitude coordinates for cleaning the data in [UFO Sightings](https://github.com/jonwright13/ufo-sightings)
+
+## Features
+
+- Rate-limiting to prevent throttling.
+- Automatic backup to restore progress if connection is interrupted
+- Returned addresses are output as a csv and JSON.
